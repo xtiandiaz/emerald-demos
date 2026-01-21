@@ -1,0 +1,3 @@
+[submodule "emerald"]
+	path = emerald
+	url = git@github.com:xtiandiaz/emerald.git

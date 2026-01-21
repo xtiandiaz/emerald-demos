@@ -1,0 +1,22 @@
+{
+  "name": "bolb",
+  "private": true,
+  "version": "0.0.0",
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "tsc && vite build",
+    "preview": "vite preview",
+    "format": "prettier --write src/"
+  },
+  "dependencies": {
+    "emerald": "file:emerald",
+    "pixi.js": "^8.15.0"
+  },
+  "devDependencies": {
+    "@types/node": "^25.0.9",
+    "prettier": "^3.8.0",
+    "typescript": "~5.9.3",
+    "vite": "^7.2.4"
+  }
+}
