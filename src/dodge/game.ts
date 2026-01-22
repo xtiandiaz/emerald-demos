@@ -1,31 +1,39 @@
 import { Collision, CollisionSensorSystem, Game, PhysicsSystem, Scene } from '@emerald'
 import type { DodgeComponents } from './components'
-import { createPlayer, createCoin, createFoe } from './entities'
+import { createPlayer, createCoin, createFoe, createBound } from './entities'
 import {
   chasingSystem,
   controlsSystem,
   difficultySystem,
-  interactionSystem,
+  shootingSystem,
   spawningSystem,
+  interactionSystem,
 } from './systems'
 import type { DodgeSignals } from './signals'
-import { DodgeCollisionLayer } from './types'
+import { DodgeCollisionLayer, type Face } from './types'
 
 const collisionLayerMap: Collision.LayerMap = new Map([
   [DodgeCollisionLayer.PLAYER, DodgeCollisionLayer.COLLECTIBLE],
   [DodgeCollisionLayer.FOE, DodgeCollisionLayer.PLAYER],
+  [
+    DodgeCollisionLayer.BULLET,
+    DodgeCollisionLayer.PLAYER | DodgeCollisionLayer.BOUND | DodgeCollisionLayer.BULLET,
+  ],
 ])
 
 const scene = new Scene<DodgeComponents, DodgeSignals>('main', [
-  new PhysicsSystem({ collisionLayerMap }),
+  new PhysicsSystem({ collisionLayerMap, debug: { rendersCollisions: false } }),
   new CollisionSensorSystem({ collisionLayerMap }),
   controlsSystem,
   spawningSystem,
-  interactionSystem,
   chasingSystem,
+  shootingSystem,
+  interactionSystem,
   difficultySystem,
 ])
 scene.build = (stage) => {
+  Array<Face>('top', 'right', 'bottom', 'left').forEach((f) => createBound(stage, f))
+
   createPlayer(stage)
 
   for (const _ of new Array(3)) {

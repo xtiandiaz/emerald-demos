@@ -1,5 +1,5 @@
-import { System, Vector, EMath } from '@emerald'
-import { createCoin } from './entities'
+import { System, Vector, EMath, ConnectableUtils } from '@emerald'
+import { createBullet, createCoin } from './entities'
 import type { DodgeComponents } from './components'
 import type { DodgeSignals } from './signals'
 
@@ -20,6 +20,28 @@ spawningSystem.init = (stage, signals, _) => {
       createCoin(stage)
     }),
   ]
+}
+
+export const interactionSystem = new System<DodgeComponents, DodgeSignals>()
+interactionSystem.fixedUpdate = (stage, signals) => {
+  const playerId = stage.getFirstEntityByTag('player')?.id
+  if (!playerId) {
+    return
+  }
+  const sensor = stage.getComponent('collision-sensor', playerId)
+  sensor?.collidedIds.forEach((id) => {
+    switch (stage.getEntityTag(id)) {
+      case 'collectible':
+        stage.removeEntity(id)
+        signals.emit('item-collected', { points: 1 })
+        break
+      case 'foe':
+      case 'bullet':
+        stage.removeEntity(playerId)
+        console.log('Game over!')
+        break
+    }
+  })
 }
 
 export const chasingSystem = new System<DodgeComponents, DodgeSignals>()
@@ -62,25 +84,25 @@ chasingSystem.fixedUpdate = (stage, _, dT) => {
   }
 }
 
-export const interactionSystem = new System<DodgeComponents, DodgeSignals>()
-interactionSystem.fixedUpdate = (stage, signals) => {
-  const playerId = stage.getFirstEntityByTag('player')?.id
-  if (!playerId) {
-    return
-  }
-  const sensor = stage.getComponent('collision-sensor', playerId)
-  sensor?.collidedIds.forEach((id) => {
-    switch (stage.getEntityTag(id)) {
-      case 'collectible':
-        stage.removeEntity(id)
-        signals.emit('item-collected', { points: 1 })
-        break
-      case 'foe':
-        stage.removeEntity(playerId)
-        console.log('Game over!')
-        break
-    }
-  })
+export const shootingSystem = new System<DodgeComponents, DodgeSignals>()
+shootingSystem.init = (stage) => {
+  return [
+    ConnectableUtils.timer(5000, true, () => {
+      if (!stage.hasEntitiesByTag('player')) return
+
+      const foe = stage.getFirstEntityByTag('foe')
+      if (!foe) return
+
+      const settings = foe.getComponent('foe-settings')!
+      const body = foe.getComponent('rigid-body')!
+
+      createBullet(
+        stage,
+        foe.position.add(body.direction.multiplyScalar(settings.radius)),
+        body.velocity.multiplyScalar(1.5).clampMagnitude(10),
+      )
+    }),
+  ]
 }
 
 export const difficultySystem = new System<DodgeComponents, DodgeSignals>()
