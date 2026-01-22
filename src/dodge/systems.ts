@@ -29,10 +29,10 @@ interactionSystem.fixedUpdate = (stage, signals) => {
     return
   }
   const sensor = stage.getComponent('collision-sensor', playerId)
-  sensor?.collidedIds.forEach((id) => {
-    switch (stage.getEntityTag(id)) {
+  sensor?.collisions.forEach(({ colliderId }) => {
+    switch (stage.getEntityTag(colliderId)) {
       case 'collectible':
-        stage.removeEntity(id)
+        stage.removeEntity(colliderId)
         signals.emit('item-collected', { points: 1 })
         break
       case 'foe':

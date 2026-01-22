@@ -1,4 +1,4 @@
-import { Collision, CollisionSensorSystem, Game, PhysicsSystem, Scene } from '@emerald'
+import { type Collision, CollisionSensorSystem, Game, PhysicsSystem, Scene } from '@emerald'
 import type { DodgeComponents } from './components'
 import { createPlayer, createCoin, createFoe, createBound } from './entities'
 import {
