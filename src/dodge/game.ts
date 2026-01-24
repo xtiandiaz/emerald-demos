@@ -1,4 +1,4 @@
-import { type Collision, CollisionSensorSystem, Game, PhysicsSystem, Scene } from '@emerald'
+import { PhysicsSystem, Game, Scene, type Collision } from '@emerald'
 import type { DodgeComponents } from './components'
 import { createPlayer, createCoin, createFoe, createBound } from './entities'
 import {
@@ -8,6 +8,7 @@ import {
   shootingSystem,
   spawningSystem,
   interactionSystem,
+  PlayerControlsSystem,
 } from './systems'
 import type { DodgeSignals } from './signals'
 import { DodgeCollisionLayer, type Face } from './types'
@@ -22,9 +23,9 @@ const collisionLayerMap: Collision.LayerMap = new Map([
 ])
 
 const scene = new Scene<DodgeComponents, DodgeSignals>('main', [
-  new PhysicsSystem({ collisionLayerMap, debug: { rendersCollisions: false } }),
-  new CollisionSensorSystem({ collisionLayerMap }),
-  controlsSystem,
+  new PhysicsSystem({ iterations: 1, collisionLayerMap, debug: { rendersColliders: false } }),
+  // controlsSystem,
+  new PlayerControlsSystem(),
   spawningSystem,
   chasingSystem,
   shootingSystem,

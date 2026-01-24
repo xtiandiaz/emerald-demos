@@ -1,14 +1,97 @@
-import { System, Vector, EMath, ConnectableUtils } from '@emerald'
+import {
+  System,
+  Vector,
+  EMath,
+  Screen,
+  ConnectableUtils,
+  Input,
+  Stage,
+  type Disconnectable,
+  type Signals,
+  Entity,
+} from '@emerald'
 import { createBullet, createCoin } from './entities'
 import type { DodgeComponents } from './components'
 import type { DodgeSignals } from './signals'
+import type { FederatedPointerEvent, Point } from 'pixi.js'
+
+interface PlayerControlState {
+  playerStartPos: Point
+  playerTargetPos: Point
+  controlStartPoint?: Point
+}
+export class PlayerControlsSystem extends System<DodgeComponents, DodgeSignals> {
+  private state?: PlayerControlState
+
+  init(
+    stage: Stage<DodgeComponents>,
+    signals: Signals.Bus<DodgeSignals>,
+    input: Input.Provider,
+  ): Disconnectable[] {
+    const player = () => stage.getFirstEntityByTag('player')
+    return [
+      input.connectContainerEvent('pointerdown', (e) => this.handlePointerInput(e, player())),
+      input.connectContainerEvent('globalpointermove', (e) => this.handlePointerInput(e, player())),
+      input.connectContainerEvent('pointerup', (e) => this.handlePointerInput(e, player())),
+    ]
+  }
+
+  update(stage: Stage<DodgeComponents>, signals: Signals.Emitter<DodgeSignals>, dT: number): void {
+    const player = stage.getFirstEntityByTag('player')
+    if (!this.state || !player) {
+      return
+    }
+    const nextPos = player.position.add(
+      this.state.playerTargetPos.subtract(player).divideByScalar(4),
+    )
+    const padding = player.getComponent('player-settings')!.radius
+    // TODO make rectangle and inset by radius of player
+    nextPos.x = EMath.clamp(nextPos.x, padding, Screen.width - padding)
+    nextPos.y = EMath.clamp(nextPos.y, padding, Screen.height - padding)
+
+    player.position.copyFrom(nextPos)
+  }
+
+  private handlePointerInput(e: FederatedPointerEvent, player?: Entity<DodgeComponents>) {
+    if (!player) {
+      return
+    }
+    switch (e.type) {
+      case 'pointerdown':
+        this.state = {
+          controlStartPoint: e.global.clone(),
+          playerStartPos: player.position.clone(),
+          playerTargetPos: player.position.clone(),
+        }
+        break
+      case 'pointermove':
+        if (!this.state?.controlStartPoint) {
+          break
+        }
+        const dPos = e.global.subtract(this.state.controlStartPoint).multiplyScalar(3)
+        const tPos = this.state.playerStartPos.add(dPos)
+        if (tPos.x <= 0 || tPos.x >= Screen.width) {
+          this.state.controlStartPoint!.x = e.globalX
+          this.state.playerStartPos.x = EMath.clamp(tPos.x, 0, Screen.width)
+        }
+        if (tPos.y <= 0 || tPos.y >= Screen.height) {
+          this.state.controlStartPoint!.y = e.globalY
+          this.state.playerStartPos.y = EMath.clamp(tPos.y, 0, Screen.height)
+        }
+        this.state.playerTargetPos.set(tPos.x, tPos.y)
+        break
+      case 'pointerup':
+        this.state!.controlStartPoint = undefined
+        break
+    }
+  }
+}
 
 export const controlsSystem = new System<DodgeComponents, DodgeSignals>()
 controlsSystem.init = (stage, _, input) => {
-  const player = stage.getFirstEntityByTag('player')
   return [
     input.connectContainerEvent('pointermove', (e) => {
-      player?.position.copyFrom(e.global)
+      stage.getFirstEntityByTag('player')?.position.copyFrom(e.global)
     }),
   ]
 }
@@ -28,8 +111,8 @@ interactionSystem.fixedUpdate = (stage, signals) => {
   if (!playerId) {
     return
   }
-  const sensor = stage.getComponent('collision-sensor', playerId)
-  sensor?.collisions.forEach(({ colliderId }) => {
+  const sensor = stage.getComponent('collider', playerId)
+  sensor?.contacts.forEach((_, colliderId) => {
     switch (stage.getEntityTag(colliderId)) {
       case 'collectible':
         stage.removeEntity(colliderId)
@@ -109,7 +192,7 @@ export const difficultySystem = new System<DodgeComponents, DodgeSignals>()
 difficultySystem.init = (stage, signals) => {
   return [
     signals.connect('item-collected', (_) => {
-      stage.getAllComponents('foe-settings').forEach((fs) => {
+      stage.getComponents('foe-settings').forEach((fs) => {
         fs.linearSpeed += 0.1
         fs.angularSpeed += 0.01
       })

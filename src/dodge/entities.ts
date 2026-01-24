@@ -3,25 +3,34 @@ import {
   type Stage,
   type VectorData,
   Collider,
-  CollisionSensor,
+  Collision,
   Entity,
   RigidBody,
   Screen,
+  Tweener,
 } from '@emerald'
 import type { DodgeComponents } from './components'
 import { DodgeCollisionLayer, DodgeColor, type Face } from './types'
+import { RayCast } from '@emerald/components/RayCast'
 
 export function createPlayer(stage: Stage<DodgeComponents>) {
+  const radius = 24
+
   stage
     .createSimpleEntity({
       tag: 'player',
       position: { x: Screen.width / 2, y: Screen.height / 2 },
-      children: [new Graphics().circle(0, 0, 24).fill({ color: DodgeColor.PLAYER })],
+      children: [new Graphics().circle(0, 0, radius).fill({ color: DodgeColor.PLAYER })],
     })
-    .addComponent({
-      'collision-sensor': new CollisionSensor(Collider.circle(24), {
+    .addComponents({
+      'player-settings': { radius },
+      collider: Collider.circle(radius, {
         layer: DodgeCollisionLayer.PLAYER,
       }),
+      'ray-cast': new RayCast([
+        'platform',
+        Collision.ray(new Point(), new Point(0, 1), 200, DodgeCollisionLayer.BOUND),
+      ]),
     })
 }
 
@@ -30,67 +39,78 @@ export function createCoin(stage: Stage<DodgeComponents>) {
   stage
     .createSimpleEntity({
       tag: 'collectible',
-      children: [new Graphics().circle(0, 0, 12).stroke({ color: DodgeColor.PLAYER, width: 2 })],
       position: {
         x: padding + Math.random() * (Screen.width - 2 * padding),
         y: padding + Math.random() * (Screen.height - 2 * padding),
       },
+      scale: { x: 0, y: 0 },
+      children: [new Graphics().circle(0, 0, 12).stroke({ color: DodgeColor.PLAYER, width: 3 })],
+      onInit: (container) => {
+        Tweener.shared.to(container, { vars: { scale: 1 } })
+      },
     })
-    .addComponent({
-      'collision-sensor': new CollisionSensor(Collider.circle(12), {
+    .addComponents({
+      collider: Collider.circle(12, {
         layer: DodgeCollisionLayer.COLLECTIBLE,
       }),
     })
 }
 
 export function createFoe(stage: Stage<DodgeComponents>, edge: number) {
-  const radius = 36
+  const radius = 40
   const padding = -100
-  const initialPosition: PointData = {
+  const position: PointData = {
     x: edge % 2 == 0 ? Screen.width / 2 : edge % 4 == 1 ? Screen.width - padding : padding,
     y: edge % 2 == 0 ? (edge % 4 == 0 ? padding : Screen.height - padding) : Screen.height / 2,
   }
-  const initialRotation = (((edge % 4) + 1) * Math.PI) / 2
+  const rotation = (((edge % 4) + 1) * Math.PI) / 2
 
   stage
     .createSimpleEntity({
       tag: 'foe',
+      position,
+      rotation,
       children: [
         new Graphics()
-          .regularPoly(0, 0, radius, 3, Math.PI / 2)
-          .stroke({ color: DodgeColor.FOE, width: 4 }),
+          .roundPoly(0, 0, radius, 3, 4, Math.PI / 2)
+          .stroke({ color: DodgeColor.FOE, width: 4 })
+          .fill({ color: DodgeColor.FOE, alpha: 0.25 }),
       ],
     })
-    .addComponent({
-      'rigid-body': new RigidBody(Collider.regularPolygon(radius, 3), {
-        layer: DodgeCollisionLayer.FOE,
+    .addComponents({
+      collider: Collider.regularPolygon(radius, 3, { layer: DodgeCollisionLayer.FOE }),
+      'rigid-body': new RigidBody({
         isKinematic: true,
-        initialPosition,
-        initialRotation,
         friction: { dynamic: 0 },
         restitution: 0,
       }),
       'foe-settings': { radius, linearSpeed: 2, angularSpeed: 0.25 },
+      'ray-cast': new RayCast([
+        'platform',
+        Collision.ray(new Point(), new Point(0, 1), 200, DodgeCollisionLayer.BOUND),
+      ]),
     })
 }
 
 export function createBullet(
   stage: Stage<DodgeComponents>,
-  initialPosition: PointData,
-  initialVelocity: VectorData,
+  position: PointData,
+  velocity: VectorData,
 ): Entity<DodgeComponents> {
   return stage
     .createSimpleEntity({
       tag: 'bullet',
+      position,
       rotation: Math.PI / 4,
       children: [new Graphics().circle(0, 0, 8).stroke({ color: DodgeColor.FOE, width: 4 })],
     })
-    .addComponent({
-      'rigid-body': new RigidBody(Collider.circle(8), {
+    .addComponents({
+      collider: Collider.circle(8, {
         layer: DodgeCollisionLayer.BULLET,
+      }),
+      'rigid-body': new RigidBody({
         isKinematic: true,
-        initialPosition,
-        initialVelocity,
+        initialVelocity: velocity,
         restitution: 1,
         friction: { static: 0, dynamic: 0 },
       }),
@@ -101,7 +121,7 @@ export function createBound(stage: Stage<DodgeComponents>, face: Face) {
   type Size = { w: number; h: number }
 
   const thickness = 100
-  const [initialPosition, size] = ((): [PointData, Size] => {
+  const [position, size] = ((): [PointData, Size] => {
     switch (face) {
       case 'top':
         return [
@@ -125,17 +145,19 @@ export function createBound(stage: Stage<DodgeComponents>, face: Face) {
   stage
     .createSimpleEntity({
       tag: 'bound',
+      position,
       children: [
         new Graphics()
-          .rect(initialPosition.x + -size.w / 2, initialPosition.y + -size.h / 2, size.w, size.h)
+          .rect(position.x + -size.w / 2, position.y + -size.h / 2, size.w, size.h)
           .fill({ color: 0xffffff }),
       ],
     })
-    .addComponent({
-      'rigid-body': new RigidBody(Collider.rectangle(size.w, size.h), {
-        isStatic: true,
+    .addComponents({
+      collider: Collider.rectangle(size.w, size.h, {
         layer: DodgeCollisionLayer.BOUND,
-        initialPosition,
+      }),
+      'rigid-body': new RigidBody({
+        isStatic: true,
         friction: { static: 0, dynamic: 0 },
         restitution: 1,
       }),

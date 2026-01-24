@@ -9,6 +9,6 @@ export enum DodgeCollisionLayer {
 }
 
 export enum DodgeColor {
-  PLAYER = 0xffffff,
+  PLAYER = 0x00ff96,
   FOE = 0xff0055,
 }

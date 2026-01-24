@@ -5,6 +5,7 @@ await (async () => {
   await Dodge.init({
     resizeTo: window,
     backgroundAlpha: 0,
+    antialias: true,
   })
   document.body.appendChild(Dodge.canvas)
 
