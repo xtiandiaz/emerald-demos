@@ -3,6 +3,8 @@ import { Dodge, DodgeScenes, type DodgeState } from './dodge'
 
 const scoreDiv = document.getElementById('score')!
 
+// console.log(window.location.hash, window.location.search)
+
 const state = new Proxy<DodgeState>(
   { isPaused: false, isOver: false, score: 0 },
   {
