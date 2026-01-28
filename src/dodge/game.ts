@@ -1,59 +1,22 @@
-import { PhysicsSystem, Game, Scene, type Collision } from '@emerald'
+import { Game, type Disconnectable, type Signals } from '@emerald'
 import type { DodgeComponents } from './components'
-import { createPlayer, createCoin, createFoe, createBound } from './entities'
-import {
-  chasingSystem,
-  controlsSystem,
-  difficultySystem,
-  shootingSystem,
-  spawningSystem,
-  interactionSystem,
-  PlayerControlsSystem,
-} from './systems'
 import type { DodgeSignals } from './signals'
-import { DodgeCollisionLayer, type Face } from './types'
 
-const collisionLayerMap: Collision.LayerMap = new Map([
-  [DodgeCollisionLayer.PLAYER, DodgeCollisionLayer.COLLECTIBLE],
-  [DodgeCollisionLayer.FOE, DodgeCollisionLayer.PLAYER],
-  [
-    DodgeCollisionLayer.BULLET,
-    DodgeCollisionLayer.PLAYER | DodgeCollisionLayer.BOUND | DodgeCollisionLayer.BULLET,
-  ],
-])
+export interface DodgeState extends Game.State {
+  isOver: boolean
+  score: number
+  bestScore?: number
+}
 
-const scene = new Scene<DodgeComponents, DodgeSignals>('main', [
-  new PhysicsSystem({ iterations: 1, collisionLayerMap, debug: { rendersColliders: false } }),
-  // controlsSystem,
-  new PlayerControlsSystem(),
-  spawningSystem,
-  chasingSystem,
-  shootingSystem,
-  interactionSystem,
-  difficultySystem,
-])
-scene.build = (stage) => {
-  Array<Face>('top', 'right', 'bottom', 'left').forEach((f) => createBound(stage, f))
-
-  createPlayer(stage)
-
-  for (const _ of new Array(3)) {
-    createCoin(stage)
+export class Dodge extends Game<DodgeComponents, DodgeSignals, DodgeState> {
+  connect(signals: Signals.Bus<DodgeSignals>, state: DodgeState): Disconnectable[] {
+    return [
+      signals.connect('item-collected', (s) => {
+        state.score += s.points
+      }),
+      signals.connect('entity-removed', (s) => {
+        state.isOver = s.tag == 'player'
+      }),
+    ]
   }
-
-  createFoe(stage, 2)
 }
-
-const scoreDiv = document.getElementById('score')!
-
-const game = new Game({ isPaused: false, score: 0 }, [scene])
-game.connect = (signals, state) => {
-  return [
-    signals.connect('item-collected', (s) => {
-      state.score += s.points
-      scoreDiv.innerText = state.score.toString()
-    }),
-  ]
-}
-
-export default game

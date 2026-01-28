@@ -8,13 +8,13 @@ import {
   RigidBody,
   Screen,
   Tweener,
+  RayCast,
 } from '@emerald'
 import type { DodgeComponents } from './components'
 import { DodgeCollisionLayer, DodgeColor, type Face } from './types'
-import { RayCast } from '@emerald/components/RayCast'
 
 export function createPlayer(stage: Stage<DodgeComponents>) {
-  const radius = 24
+  const radius = 16
 
   stage
     .createSimpleEntity({
@@ -23,7 +23,7 @@ export function createPlayer(stage: Stage<DodgeComponents>) {
       children: [new Graphics().circle(0, 0, radius).fill({ color: DodgeColor.PLAYER })],
     })
     .addComponents({
-      'player-settings': { radius },
+      'player-attributes': { radius },
       collider: Collider.circle(radius, {
         layer: DodgeCollisionLayer.PLAYER,
       }),
@@ -34,8 +34,10 @@ export function createPlayer(stage: Stage<DodgeComponents>) {
     })
 }
 
-export function createCoin(stage: Stage<DodgeComponents>) {
-  const padding = 50
+export function createCollectible(stage: Stage<DodgeComponents>) {
+  const radius = 12
+  const padding = radius * 2
+
   stage
     .createSimpleEntity({
       tag: 'collectible',
@@ -44,9 +46,24 @@ export function createCoin(stage: Stage<DodgeComponents>) {
         y: padding + Math.random() * (Screen.height - 2 * padding),
       },
       scale: { x: 0, y: 0 },
-      children: [new Graphics().circle(0, 0, 12).stroke({ color: DodgeColor.PLAYER, width: 3 })],
+      children: [
+        new Graphics()
+          .roundPoly(0, 0, radius, 5, 4)
+          .fill({ color: DodgeColor.PLAYER, alpha: 0.1 })
+          .stroke({ color: DodgeColor.PLAYER, width: 3 }),
+      ],
       onInit: (container) => {
         Tweener.shared.to(container, { vars: { scale: 1 } })
+        Tweener.shared
+          .timeline()
+          .to(container, {
+            pixi: { rotation: 45 },
+            startAt: { pixi: { rotation: -45 } },
+            ease: 'power3.inOut',
+            duration: 1,
+          })
+          .to(container, { pixi: { rotation: -45 }, ease: 'power3.inOut', duration: 1 })
+          .repeat(-1)
       },
     })
     .addComponents({
@@ -57,7 +74,7 @@ export function createCoin(stage: Stage<DodgeComponents>) {
 }
 
 export function createFoe(stage: Stage<DodgeComponents>, edge: number) {
-  const radius = 40
+  const radius = 28
   const padding = -100
   const position: PointData = {
     x: edge % 2 == 0 ? Screen.width / 2 : edge % 4 == 1 ? Screen.width - padding : padding,
@@ -73,8 +90,8 @@ export function createFoe(stage: Stage<DodgeComponents>, edge: number) {
       children: [
         new Graphics()
           .roundPoly(0, 0, radius, 3, 4, Math.PI / 2)
-          .stroke({ color: DodgeColor.FOE, width: 4 })
-          .fill({ color: DodgeColor.FOE, alpha: 0.25 }),
+          .fill({ color: DodgeColor.FOE, alpha: 0.1 })
+          .stroke({ color: DodgeColor.FOE, width: 4 }),
       ],
     })
     .addComponents({
@@ -84,7 +101,8 @@ export function createFoe(stage: Stage<DodgeComponents>, edge: number) {
         friction: { dynamic: 0 },
         restitution: 0,
       }),
-      'foe-settings': { radius, linearSpeed: 2, angularSpeed: 0.25 },
+      'foe-attributes': { radius },
+      'foe-state': { linearSpeed: 2, angularSpeed: 0.25, lastShotTimestamp: Date.now() },
       'ray-cast': new RayCast([
         'platform',
         Collision.ray(new Point(), new Point(0, 1), 200, DodgeCollisionLayer.BOUND),

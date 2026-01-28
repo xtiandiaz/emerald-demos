@@ -1,16 +1,20 @@
 import type { Component, Components } from '@emerald'
 
-export interface PlayerSettings extends Component {
+export interface PlayerAttributes extends Component {
   radius: number
 }
 
-export interface FoeSettings extends Component {
+export interface FoeAttributes extends Component {
   radius: number
+}
+export interface FoeState extends Component {
   linearSpeed: number
   angularSpeed: number
+  lastShotTimestamp: number
 }
 
 export interface DodgeComponents extends Components {
-  'foe-settings': FoeSettings
-  'player-settings': PlayerSettings
+  'foe-attributes': FoeAttributes
+  'foe-state': FoeState
+  'player-attributes': PlayerAttributes
 }
